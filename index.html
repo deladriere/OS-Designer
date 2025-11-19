@@ -42,10 +42,9 @@
             
             <!-- Settings Panel -->
             <div id="settingsPanel" class="panel">
-                <h2>Grid Settings</h2>
-                <p class="subtitle" id="gridInfo">Current grid: 8x8 (32cm x 32cm)</p>
-                
                 <div class="form-section">
+                    <h2>Grid Settings</h2>
+                    
                     <div class="form-group">
                         <label for="gridSize">Grid Size (units per side):</label>
                         <input type="number" id="gridSize" min="4" max="16" value="8">
@@ -75,6 +74,7 @@
                     <div class="form-group">
                         <label for="outerBorderColor">Outer Frame Color:</label>
                         <input type="color" id="outerBorderColor" value="#ffffff">
+                        <small>Total frame size: <span id="frameSizeDisplay">340mm x 340mm</span></small>
                     </div>
 
                     <button id="applyGridBtn" class="btn-primary">Apply Settings</button>

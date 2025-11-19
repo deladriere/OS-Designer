@@ -109,10 +109,11 @@ body {
 }
 
 .form-section {
-    background: #f8f9fa;
+    background: #e8eaed;
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
+    border: 1px solid #d0d3d6;
 }
 
 .form-section h2 {
@@ -452,6 +453,17 @@ body {
     font-size: 11px;
     color: #777;
     margin-bottom: 4px;
+}
+
+.frame-size-display {
+    background: white;
+    padding: 12px 16px;
+    border-radius: 4px;
+    border: 2px solid #667eea;
+    font-size: 18px;
+    font-weight: 600;
+    color: #667eea;
+    text-align: center;
 }
 
 .placed-shape {

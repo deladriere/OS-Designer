@@ -113,14 +113,19 @@ function setupEventListeners() {
         const size = parseInt(gridSizeInput.value);
         const cm = size * 4;
         document.getElementById('totalSize').textContent = `${cm}cm x ${cm}cm`;
+        updateFrameSizeDisplay();
     });
+
+    // Update frame size when border inputs change
+    const borderLRInput = document.getElementById('outerBorderLR');
+    const borderTBInput = document.getElementById('outerBorderTB');
+    borderLRInput.addEventListener('input', updateFrameSizeDisplay);
+    borderTBInput.addEventListener('input', updateFrameSizeDisplay);
 }
 
 // Update grid size display
 function updateGridSizeDisplay() {
     const totalCm = GRID_SIZE * 4;
-    document.getElementById('gridInfo').textContent =
-        `Current grid: ${GRID_SIZE}x${GRID_SIZE} (${totalCm}cm x ${totalCm}cm)`;
     document.getElementById('gridSize').value = GRID_SIZE;
     document.getElementById('totalSize').textContent = `${totalCm}cm x ${totalCm}cm`;
     document.getElementById('screwDiameter').value = SCREW_DIAMETER;
@@ -130,6 +135,23 @@ function updateGridSizeDisplay() {
     if (lrInput) lrInput.value = OUTER_BORDER_LR_CM;
     if (tbInput) tbInput.value = OUTER_BORDER_TB_CM;
     if (colorInput) colorInput.value = OUTER_BORDER_COLOR;
+    updateFrameSizeDisplay();
+}
+
+// Update frame size display
+function updateFrameSizeDisplay() {
+    const gridSize = parseInt(document.getElementById('gridSize').value) || GRID_SIZE;
+    const borderLR = parseFloat(document.getElementById('outerBorderLR').value) || OUTER_BORDER_LR_CM;
+    const borderTB = parseFloat(document.getElementById('outerBorderTB').value) || OUTER_BORDER_TB_CM;
+    
+    const gridSizeMM = gridSize * 40;
+    const frameWidth = gridSizeMM + (2 * borderLR * 10);
+    const frameHeight = gridSizeMM + (2 * borderTB * 10);
+    
+    const displayElem = document.getElementById('frameSizeDisplay');
+    if (displayElem) {
+        displayElem.textContent = `${frameWidth}mm x ${frameHeight}mm`;
+    }
 }
 
 // Render screw holes at grid intersections
