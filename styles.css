@@ -426,6 +426,7 @@ body {
     font-weight: 600;
     transition: all 0.2s ease;
     user-select: none;
+    box-sizing: border-box;
 }
 
 .placed-shape::after {
@@ -509,6 +510,7 @@ body {
     border: 2px dashed #667eea;
     background: rgba(102, 126, 234, 0.2);
     pointer-events: none;
+    box-sizing: border-box;
 }
 
 .invalid-preview {

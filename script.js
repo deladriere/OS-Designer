@@ -5,6 +5,8 @@ let shapeIdCounter = 0;
 let draggedShape = null;
 let draggedFromGrid = false;
 let screwHoleElements = [];
+let gridColumnEdges = [];
+let gridRowEdges = [];
 let customColors = [];
 let selectedColor = null;
 
@@ -143,6 +145,8 @@ function renderScrewHoles() {
         const cell = gridCells[row * GRID_SIZE];
         rowEdges.push(cell.offsetTop + cell.offsetHeight);
     }
+    gridColumnEdges = columnEdges;
+    gridRowEdges = rowEdges;
     
     // Add screw holes at each grid intersection (corners)
     for (let row = 0; row <= GRID_SIZE; row++) {
@@ -367,10 +371,14 @@ function showPreview(gridX, gridY) {
     // Create preview
     const preview = document.createElement('div');
     preview.className = `preview-shape ${isValid ? '' : 'invalid-preview'}`;
-    preview.style.left = `${gridX * CELL_SIZE}px`;
-    preview.style.top = `${gridY * CELL_SIZE}px`;
-    preview.style.width = `${draggedShape.width * CELL_SIZE}px`;
-    preview.style.height = `${draggedShape.height * CELL_SIZE}px`;
+    const left = getEdgePosition(gridColumnEdges, gridX, CELL_SIZE);
+    const top = getEdgePosition(gridRowEdges, gridY, CELL_SIZE);
+    const width = getSpanSize(gridColumnEdges, gridX, draggedShape.width, CELL_SIZE);
+    const height = getSpanSize(gridRowEdges, gridY, draggedShape.height, CELL_SIZE);
+    preview.style.left = `${left}px`;
+    preview.style.top = `${top}px`;
+    preview.style.width = `${width}px`;
+    preview.style.height = `${height}px`;
     
     document.getElementById('grid').appendChild(preview);
 }
@@ -465,10 +473,14 @@ function renderPlacedShapes() {
         shapeEl.className = 'placed-shape';
         shapeEl.draggable = true;
         shapeEl.dataset.placedId = placed.id;
-        shapeEl.style.left = `${placed.x * CELL_SIZE}px`;
-        shapeEl.style.top = `${placed.y * CELL_SIZE}px`;
-        shapeEl.style.width = `${placed.shape.width * CELL_SIZE}px`;
-        shapeEl.style.height = `${placed.shape.height * CELL_SIZE}px`;
+        const left = getEdgePosition(gridColumnEdges, placed.x, CELL_SIZE);
+        const top = getEdgePosition(gridRowEdges, placed.y, CELL_SIZE);
+        const width = getSpanSize(gridColumnEdges, placed.x, placed.shape.width, CELL_SIZE);
+        const height = getSpanSize(gridRowEdges, placed.y, placed.shape.height, CELL_SIZE);
+        shapeEl.style.left = `${left}px`;
+        shapeEl.style.top = `${top}px`;
+        shapeEl.style.width = `${width}px`;
+        shapeEl.style.height = `${height}px`;
         shapeEl.style.backgroundColor = placed.shape.color;
         shapeEl.textContent = `${placed.shape.width}x${placed.shape.height}`;
         
@@ -689,5 +701,23 @@ function selectColor(color) {
     selectedColor = color;
     renderDesignerColorPalette();
     updateGridColorPalette();
+}
+
+// Helpers to map grid indices to pixel positions
+function getEdgePosition(edges, index, fallback) {
+    if (edges.length) {
+        const clamped = Math.max(0, Math.min(index, edges.length - 1));
+        return edges[clamped];
+    }
+    return index * fallback;
+}
+
+function getSpanSize(edges, startIndex, span, fallback) {
+    if (edges.length) {
+        const start = getEdgePosition(edges, startIndex, fallback);
+        const end = getEdgePosition(edges, startIndex + span, fallback);
+        return end - start;
+    }
+    return span * fallback;
 }
 
