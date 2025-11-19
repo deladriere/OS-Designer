@@ -381,6 +381,10 @@ body {
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
+.screw-hole.hidden-screw {
+    opacity: 0;
+}
+
 .placed-shape {
     position: absolute;
     border: 3px solid rgba(0, 0, 0, 0.4);

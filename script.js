@@ -4,6 +4,7 @@ let placedShapes = [];
 let shapeIdCounter = 0;
 let draggedShape = null;
 let draggedFromGrid = false;
+let screwHoleElements = [];
 
 // Grid configuration
 const GRID_TOTAL_SIZE = 600; // Total grid size in pixels
@@ -103,6 +104,7 @@ function renderScrewHoles() {
     
     // Remove existing screw holes
     document.querySelectorAll('.screw-hole').forEach(el => el.remove());
+    screwHoleElements = [];
     
     // Calculate screw hole size in pixels
     // 1 grid unit = 4cm = 40mm
@@ -129,6 +131,8 @@ function renderScrewHoles() {
         for (let col = 0; col <= GRID_SIZE; col++) {
             const screwHole = document.createElement('div');
             screwHole.className = 'screw-hole';
+            screwHole.dataset.col = col;
+            screwHole.dataset.row = row;
             const left = columnEdges[col];
             const top = rowEdges[row];
             
@@ -140,8 +144,15 @@ function renderScrewHoles() {
             screwHole.style.marginTop = `-${screwRadiusPx}px`;
             
             grid.appendChild(screwHole);
+            screwHoleElements.push({
+                element: screwHole,
+                col,
+                row
+            });
         }
     }
+    
+    updateScrewVisibility();
 }
 
 // Apply grid size
@@ -459,6 +470,8 @@ function renderPlacedShapes() {
         
         document.getElementById('grid').appendChild(shapeEl);
     });
+    
+    updateScrewVisibility();
 }
 
 // Clear all shapes from grid
@@ -494,6 +507,32 @@ function deleteShape(placedId) {
     renderPlacedShapes();
     renderShapesList();
     updateColorPalette();
+    updateScrewVisibility();
+}
+
+// Hide screws that fall inside placed shapes
+function updateScrewVisibility() {
+    if (!screwHoleElements.length) return;
+    
+    screwHoleElements.forEach(hole => {
+        hole.element.classList.remove('hidden-screw');
+    });
+    
+    placedShapes.forEach(placed => {
+        const startX = placed.x;
+        const endX = placed.x + placed.shape.width;
+        const startY = placed.y;
+        const endY = placed.y + placed.shape.height;
+        
+        screwHoleElements.forEach(hole => {
+            const col = hole.col;
+            const row = hole.row;
+            
+            if (col > startX && col < endX && row > startY && row < endY) {
+                hole.element.classList.add('hidden-screw');
+            }
+        });
+    });
 }
 
 // Update color palette with existing colors from grid
