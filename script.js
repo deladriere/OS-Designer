@@ -100,6 +100,7 @@ function setupEventListeners() {
     document.getElementById('clearBtn').addEventListener('click', clearGrid);
     document.getElementById('applyGridBtn').addEventListener('click', applyGridSize);
     document.getElementById('saveColorsBtn').addEventListener('click', saveCustomColors);
+    document.getElementById('exportFrameBtn').addEventListener('click', exportOuterFrameSVG);
 
     const grid = document.getElementById('grid');
     grid.addEventListener('dragover', handleDragOver);
@@ -805,5 +806,194 @@ function clamp(value, min, max) {
     const num = Number(value);
     if (Number.isNaN(num)) return min;
     return Math.min(Math.max(num, min), max);
+}
+
+// Export outer frame as SVG for CNC/laser cutting
+function exportOuterFrameSVG() {
+    // Calculate dimensions in mm (standard for CNC/laser)
+    const gridSizeMM = GRID_SIZE * 40; // Each grid unit = 4cm = 40mm
+    const borderLR_MM = OUTER_BORDER_LR_CM * 10; // cm to mm
+    const borderTB_MM = OUTER_BORDER_TB_CM * 10; // cm to mm
+    const screwRadiusMM = SCREW_DIAMETER / 2; // Screw hole radius in mm
+    const unitSizeMM = 40; // Each grid unit = 40mm
+    
+    // Outer dimensions (including frame)
+    const outerWidth = gridSizeMM + (2 * borderLR_MM);
+    const outerHeight = gridSizeMM + (2 * borderTB_MM);
+    
+    // Inner dimensions (the grid opening)
+    const innerWidth = gridSizeMM;
+    const innerHeight = gridSizeMM;
+    
+    // Position of inner rectangle
+    const innerX = borderLR_MM;
+    const innerY = borderTB_MM;
+    
+    // Generate screw holes ONLY on the frame perimeter (partial arcs)
+    let screwHolesContent = '';
+    for (let row = 0; row <= GRID_SIZE; row++) {
+        for (let col = 0; col <= GRID_SIZE; col++) {
+            // Only process perimeter holes
+            const isPerimeter = (row === 0 || row === GRID_SIZE || col === 0 || col === GRID_SIZE);
+            if (!isPerimeter) continue;
+            
+            const cx = innerX + (col * unitSizeMM);
+            const cy = innerY + (row * unitSizeMM);
+            const r = screwRadiusMM;
+            
+            // Determine which arc to draw based on position
+            const isTopEdge = (row === 0);
+            const isBottomEdge = (row === GRID_SIZE);
+            const isLeftEdge = (col === 0);
+            const isRightEdge = (col === GRID_SIZE);
+            
+            let pathData = '';
+            
+            // Corners (three-quarter circles - 75% in the frame)
+            if (isTopEdge && isLeftEdge) {
+                // Top-left corner: draw 270 degrees (everything except bottom-right quarter)
+                pathData = `M ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx} ${cy + r}`;
+            } else if (isTopEdge && isRightEdge) {
+                // Top-right corner: draw 270 degrees (everything except bottom-left quarter)
+                pathData = `M ${cx} ${cy + r} A ${r} ${r} 0 1 0 ${cx - r} ${cy}`;
+            } else if (isBottomEdge && isLeftEdge) {
+                // Bottom-left corner: draw 270 degrees (everything except top-right quarter)
+                pathData = `M ${cx} ${cy - r} A ${r} ${r} 0 1 0 ${cx + r} ${cy}`;
+            } else if (isBottomEdge && isRightEdge) {
+                // Bottom-right corner: draw 270 degrees (everything except top-left quarter)
+                pathData = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx} ${cy - r}`;
+            }
+            // Edges (semicircles)
+            else if (isLeftEdge) {
+                // Left edge: draw left semicircle (facing outward into frame)
+                pathData = `M ${cx} ${cy - r} A ${r} ${r} 0 0 0 ${cx} ${cy + r}`;
+            } else if (isRightEdge) {
+                // Right edge: draw right semicircle (facing outward into frame)
+                pathData = `M ${cx} ${cy + r} A ${r} ${r} 0 0 0 ${cx} ${cy - r}`;
+            } else if (isTopEdge) {
+                // Top edge: draw top semicircle (facing outward into frame)
+                pathData = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+            } else if (isBottomEdge) {
+                // Bottom edge: draw bottom semicircle (facing outward into frame)
+                pathData = `M ${cx + r} ${cy} A ${r} ${r} 0 0 1 ${cx - r} ${cy}`;
+            }
+            
+            if (pathData) {
+                screwHolesContent += `        <path d="${pathData}" fill="none" stroke="#000000" stroke-width="0.1"/>\n`;
+            }
+        }
+    }
+    
+    // Generate frame segments (avoiding screw holes)
+    let outerFrameSegments = '';
+    let innerFrameSegments = '';
+    
+    // Generate outer frame edges as segments between screw holes
+    for (let i = 0; i <= GRID_SIZE; i++) {
+        const pos = i * unitSizeMM;
+        
+        // Top edge outer
+        if (i < GRID_SIZE) {
+            const x1 = innerX + pos + screwRadiusMM;
+            const x2 = innerX + (i + 1) * unitSizeMM - screwRadiusMM;
+            outerFrameSegments += `        <line x1="${x1}" y1="0" x2="${x2}" y2="0" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Bottom edge outer
+        if (i < GRID_SIZE) {
+            const x1 = innerX + pos + screwRadiusMM;
+            const x2 = innerX + (i + 1) * unitSizeMM - screwRadiusMM;
+            outerFrameSegments += `        <line x1="${x1}" y1="${outerHeight}" x2="${x2}" y2="${outerHeight}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Left edge outer
+        if (i < GRID_SIZE) {
+            const y1 = innerY + pos + screwRadiusMM;
+            const y2 = innerY + (i + 1) * unitSizeMM - screwRadiusMM;
+            outerFrameSegments += `        <line x1="0" y1="${y1}" x2="0" y2="${y2}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Right edge outer
+        if (i < GRID_SIZE) {
+            const y1 = innerY + pos + screwRadiusMM;
+            const y2 = innerY + (i + 1) * unitSizeMM - screwRadiusMM;
+            outerFrameSegments += `        <line x1="${outerWidth}" y1="${y1}" x2="${outerWidth}" y2="${y2}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Top edge inner
+        if (i < GRID_SIZE) {
+            const x1 = innerX + pos + screwRadiusMM;
+            const x2 = innerX + (i + 1) * unitSizeMM - screwRadiusMM;
+            innerFrameSegments += `        <line x1="${x1}" y1="${innerY}" x2="${x2}" y2="${innerY}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Bottom edge inner
+        if (i < GRID_SIZE) {
+            const x1 = innerX + pos + screwRadiusMM;
+            const x2 = innerX + (i + 1) * unitSizeMM - screwRadiusMM;
+            innerFrameSegments += `        <line x1="${x1}" y1="${innerY + innerHeight}" x2="${x2}" y2="${innerY + innerHeight}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Left edge inner
+        if (i < GRID_SIZE) {
+            const y1 = innerY + pos + screwRadiusMM;
+            const y2 = innerY + (i + 1) * unitSizeMM - screwRadiusMM;
+            innerFrameSegments += `        <line x1="${innerX}" y1="${y1}" x2="${innerX}" y2="${y2}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+        
+        // Right edge inner
+        if (i < GRID_SIZE) {
+            const y1 = innerY + pos + screwRadiusMM;
+            const y2 = innerY + (i + 1) * unitSizeMM - screwRadiusMM;
+            innerFrameSegments += `        <line x1="${innerX + innerWidth}" y1="${y1}" x2="${innerX + innerWidth}" y2="${y2}" stroke="#000000" stroke-width="0.1"/>\n`;
+        }
+    }
+    
+    // Create SVG content
+    const svgContent = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="${outerWidth}mm" height="${outerHeight}mm" 
+     viewBox="0 0 ${outerWidth} ${outerHeight}"
+     xmlns="http://www.w3.org/2000/svg">
+    
+    <!-- Outer Frame for CNC/Laser Cutting -->
+    <!-- All dimensions in millimeters -->
+    <!-- Grid size: ${GRID_SIZE}x${GRID_SIZE} units (${gridSizeMM}mm x ${gridSizeMM}mm) -->
+    <!-- Frame width: L/R=${borderLR_MM}mm, T/B=${borderTB_MM}mm -->
+    <!-- Screw holes: ${SCREW_DIAMETER}mm diameter -->
+    
+    <g id="outer-frame-edges">
+        <!-- Outer frame edges (segmented to avoid screw holes) -->
+${outerFrameSegments}    </g>
+    
+    <g id="inner-frame-edges">
+        <!-- Inner frame edges (segmented to avoid screw holes) -->
+${innerFrameSegments}    </g>
+    
+    <g id="screw-holes">
+        <!-- Screw holes at grid intersections (contours only) -->
+${screwHolesContent}    </g>
+    
+</svg>`;
+    
+    // Create blob and download
+    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `outer-frame-${GRID_SIZE}x${GRID_SIZE}-${outerWidth}x${outerHeight}mm.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    // Visual feedback
+    const btn = document.getElementById('exportFrameBtn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Downloaded!';
+    btn.disabled = true;
+    setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }, 1500);
 }
 
