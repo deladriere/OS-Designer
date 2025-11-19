@@ -60,6 +60,12 @@
                     
                     <button id="applyGridBtn" class="btn-primary">Apply Settings</button>
                 </div>
+
+                <div class="form-section">
+                    <h2>Color Settings</h2>
+                    <div id="colorSettingsList" class="color-settings-list"></div>
+                    <button id="saveColorsBtn" class="btn-primary">Save Colors</button>
+                </div>
             </div>
             
             <!-- Designer Panel -->
@@ -78,9 +84,13 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="color">Color:</label>
-                        <input type="color" id="color" value="#3498db">
-                        <div id="colorPalette" class="color-palette"></div>
+                        <label>Palette Color:</label>
+                        <div id="designerColorPalette" class="color-palette selectable"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Colors from grid:</label>
+                        <div id="gridColorPalette" class="color-palette"></div>
                     </div>
                     
                     <div class="form-group">

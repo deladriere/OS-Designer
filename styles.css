@@ -385,6 +385,34 @@ body {
     opacity: 0;
 }
 
+.color-settings-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 20px;
+    margin-bottom: 15px;
+}
+
+.color-setting-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.color-setting-item label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.color-setting-item input[type="color"] {
+    width: 50px;
+    height: 32px;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+}
+
 .placed-shape {
     position: absolute;
     border: 3px solid rgba(0, 0, 0, 0.4);

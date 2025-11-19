@@ -5,6 +5,21 @@ let shapeIdCounter = 0;
 let draggedShape = null;
 let draggedFromGrid = false;
 let screwHoleElements = [];
+let customColors = [];
+let selectedColor = null;
+
+const DEFAULT_COLORS = [
+    '#e74c3c',
+    '#e67e22',
+    '#f1c40f',
+    '#2ecc71',
+    '#1abc9c',
+    '#3498db',
+    '#9b59b6',
+    '#34495e',
+    '#95a5a6',
+    '#f39c12'
+];
 
 // Grid configuration
 const GRID_TOTAL_SIZE = 600; // Total grid size in pixels
@@ -15,10 +30,15 @@ let SCREW_DIAMETER = 4; // mm - diameter of screw holes
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    loadCustomColors();
     initializeGrid();
     setupEventListeners();
     setupIconMenu();
     updateGridSizeDisplay();
+    renderColorSettingsInputs();
+    selectedColor = customColors[0] || null;
+    renderDesignerColorPalette();
+    updateGridColorPalette();
 });
 
 // Create the grid cells
@@ -70,14 +90,12 @@ function setupEventListeners() {
     document.getElementById('createBtn').addEventListener('click', createShape);
     document.getElementById('clearBtn').addEventListener('click', clearGrid);
     document.getElementById('applyGridBtn').addEventListener('click', applyGridSize);
+    document.getElementById('saveColorsBtn').addEventListener('click', saveCustomColors);
     
     const grid = document.getElementById('grid');
     grid.addEventListener('dragover', handleDragOver);
     grid.addEventListener('drop', handleDrop);
     grid.addEventListener('dragleave', handleDragLeave);
-    
-    // Update color palette when color picker changes
-    document.getElementById('color').addEventListener('change', updateColorPalette);
     
     // Update total size display when grid size changes
     const gridSizeInput = document.getElementById('gridSize');
@@ -194,15 +212,19 @@ function applyGridSize() {
     updateGridSizeDisplay();
     renderPlacedShapes();
     renderShapesList();
-    updateColorPalette();
+    updateGridColorPalette();
 }
 
 // Create a new shape
 function createShape() {
     const width = parseInt(document.getElementById('width').value);
     const height = parseInt(document.getElementById('height').value);
-    const color = document.getElementById('color').value;
     const orientation = document.querySelector('input[name="orientation"]:checked').value;
+    
+    if (!selectedColor) {
+        alert('Please select a color from the palette.');
+        return;
+    }
     
     // Validate dimensions
     if (width < 1 || width > GRID_SIZE || height < 1 || height > GRID_SIZE) {
@@ -233,13 +255,13 @@ function createShape() {
         id: shapeIdCounter++,
         width: finalWidth,
         height: finalHeight,
-        color: color,
+        color: selectedColor,
         orientation: orientation
     };
     
     shapes.push(shape);
     renderShapesList();
-    updateColorPalette();
+    updateGridColorPalette();
 }
 
 // Render the list of shapes to place
@@ -390,7 +412,7 @@ function handleDrop(e) {
         }
         
         renderPlacedShapes();
-        updateColorPalette();
+        updateGridColorPalette();
     }
     
     // Remove preview
@@ -487,7 +509,7 @@ function clearGrid() {
         placedShapes = [];
         renderPlacedShapes();
         renderShapesList();
-        updateColorPalette();
+        updateGridColorPalette();
     }
 }
 
@@ -506,7 +528,7 @@ function deleteShape(placedId) {
     // Re-render everything
     renderPlacedShapes();
     renderShapesList();
-    updateColorPalette();
+    updateGridColorPalette();
     updateScrewVisibility();
 }
 
@@ -536,9 +558,9 @@ function updateScrewVisibility() {
 }
 
 // Update color palette with existing colors from grid
-function updateColorPalette() {
-    const palette = document.getElementById('colorPalette');
-    const currentColor = document.getElementById('color').value.toLowerCase();
+function updateGridColorPalette() {
+    const palette = document.getElementById('gridColorPalette');
+    if (!palette) return;
     
     // Get all unique colors from placed shapes
     const usedColors = new Set();
@@ -556,18 +578,116 @@ function updateColorPalette() {
     usedColors.forEach(color => {
         const colorItem = document.createElement('div');
         colorItem.className = 'color-palette-item';
-        if (color === currentColor) {
+        if (selectedColor && color === selectedColor.toLowerCase()) {
             colorItem.classList.add('selected');
         }
         colorItem.style.backgroundColor = color;
         colorItem.title = `Click to use ${color}`;
         
         colorItem.addEventListener('click', () => {
-            document.getElementById('color').value = color;
-            updateColorPalette();
+            selectColor(color);
         });
         
         palette.appendChild(colorItem);
     });
+}
+
+// Load custom colors from storage or defaults
+function loadCustomColors() {
+    const stored = localStorage.getItem('osDesignerColors');
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+                customColors = parsed.slice(0, 10);
+            }
+        } catch (err) {
+            console.warn('Unable to parse saved colors', err);
+        }
+    }
+    
+    if (!customColors.length) {
+        customColors = DEFAULT_COLORS.slice(0, 10);
+    }
+    
+    while (customColors.length < 10) {
+        customColors.push('#cccccc');
+    }
+}
+
+// Render color inputs in settings
+function renderColorSettingsInputs() {
+    const list = document.getElementById('colorSettingsList');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    customColors.forEach((color, index) => {
+        const item = document.createElement('div');
+        item.className = 'color-setting-item';
+        
+        const label = document.createElement('label');
+        label.textContent = `Color ${index + 1}`;
+        
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = color;
+        input.dataset.index = index;
+        input.addEventListener('input', (e) => {
+            const oldColor = customColors[index];
+            customColors[index] = e.target.value;
+            if (selectedColor && oldColor && selectedColor.toLowerCase() === oldColor.toLowerCase()) {
+                selectedColor = customColors[index];
+            }
+            renderDesignerColorPalette();
+            updateGridColorPalette();
+        });
+        
+        item.appendChild(label);
+        item.appendChild(input);
+        list.appendChild(item);
+    });
+}
+
+// Save colors to local storage
+function saveCustomColors() {
+    localStorage.setItem('osDesignerColors', JSON.stringify(customColors));
+    const btn = document.getElementById('saveColorsBtn');
+    if (btn) {
+        const originalText = btn.textContent;
+        btn.textContent = 'Saved!';
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }, 1200);
+    }
+}
+
+// Render palette for designer selection
+function renderDesignerColorPalette() {
+    const palette = document.getElementById('designerColorPalette');
+    if (!palette) return;
+    
+    palette.innerHTML = '';
+    
+    customColors.forEach(color => {
+        const colorItem = document.createElement('div');
+        colorItem.className = 'color-palette-item';
+        if (selectedColor && color.toLowerCase() === selectedColor.toLowerCase()) {
+            colorItem.classList.add('selected');
+        }
+        colorItem.style.backgroundColor = color;
+        colorItem.title = `Use ${color}`;
+        colorItem.addEventListener('click', () => selectColor(color));
+        palette.appendChild(colorItem);
+    });
+}
+
+// Select a color for new shapes
+function selectColor(color) {
+    if (!color) return;
+    selectedColor = color;
+    renderDesignerColorPalette();
+    updateGridColorPalette();
 }
 
