@@ -350,7 +350,7 @@ body {
 
 .grid-container {
     background: white;
-    padding: 20px;
+    padding: 0;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
@@ -413,9 +413,25 @@ body {
     background: transparent;
 }
 
+.dual-input {
+    display: flex;
+    gap: 10px;
+}
+
+.dual-input div {
+    flex: 1;
+}
+
+.dual-input small {
+    display: block;
+    font-size: 11px;
+    color: #777;
+    margin-bottom: 4px;
+}
+
 .placed-shape {
     position: absolute;
-    border: 3px solid rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(0, 0, 0, 0.35);
     border-radius: 4px;
     cursor: grab;
     display: flex;

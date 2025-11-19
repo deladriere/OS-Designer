@@ -10,7 +10,7 @@
     <div class="container">
         <!-- Left Icon Menu -->
         <div class="icon-menu">
-            <div class="menu-item active" data-panel="designer" title="Designer">
+            <div class="menu-item" data-panel="designer" title="Designer">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"/>
                     <rect x="14" y="3" width="7" height="7"/>
@@ -20,7 +20,7 @@
                 <span>Designer</span>
             </div>
             
-            <div class="menu-item" data-panel="settings" title="Settings">
+            <div class="menu-item active" data-panel="settings" title="Settings">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"/>
@@ -41,7 +41,7 @@
             <h1>OS Designer</h1>
             
             <!-- Settings Panel -->
-            <div id="settingsPanel" class="panel" style="display: none;">
+            <div id="settingsPanel" class="panel">
                 <h2>Grid Settings</h2>
                 <p class="subtitle" id="gridInfo">Current grid: 8x8 (32cm x 32cm)</p>
                 
@@ -57,7 +57,26 @@
                         <input type="number" id="screwDiameter" min="1" max="20" step="0.5" value="4">
                         <small>Diameter of screw holes at grid corners</small>
                     </div>
-                    
+
+                    <div class="form-group">
+                        <label>Outer Frame Width (cm):</label>
+                        <div class="dual-input">
+                            <div>
+                                <small>Left & Right</small>
+                                <input type="number" id="outerBorderLR" min="0" max="10" step="0.1" value="1">
+                            </div>
+                            <div>
+                                <small>Top & Bottom</small>
+                                <input type="number" id="outerBorderTB" min="0" max="10" step="0.1" value="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="outerBorderColor">Outer Frame Color:</label>
+                        <input type="color" id="outerBorderColor" value="#ffffff">
+                    </div>
+
                     <button id="applyGridBtn" class="btn-primary">Apply Settings</button>
                 </div>
 
@@ -69,7 +88,7 @@
             </div>
             
             <!-- Designer Panel -->
-            <div id="designerPanel" class="panel">
+            <div id="designerPanel" class="panel" style="display: none;">
                 <div class="form-section">
                     <h2>Create Rectangle</h2>
                     
