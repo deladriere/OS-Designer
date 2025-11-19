@@ -11,6 +11,58 @@ body {
     color: #333;
 }
 
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+}
+
+.modal-content h2 {
+    color: #667eea;
+    margin-bottom: 10px;
+    font-size: 32px;
+}
+
+.modal-content p {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 16px;
+}
+
+.setup-form {
+    text-align: left;
+}
+
+.setup-form small {
+    display: block;
+    margin-top: 5px;
+    color: #667eea;
+    font-weight: 600;
+}
+
 .container {
     display: flex;
     height: 100vh;
@@ -206,6 +258,12 @@ body {
     overflow-y: auto;
 }
 
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .empty-message {
     color: #999;
     font-style: italic;
@@ -278,8 +336,8 @@ body {
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
+    grid-template-columns: repeat(var(--grid-size, 8), 1fr);
+    grid-template-rows: repeat(var(--grid-size, 8), 1fr);
     gap: 1px;
     background: #ddd;
     border: 2px solid #333;

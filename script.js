@@ -6,18 +6,61 @@ let draggedShape = null;
 let draggedFromGrid = false;
 
 // Grid configuration
-const GRID_SIZE = 8;
-const CELL_SIZE = 600 / GRID_SIZE; // 600px grid / 8 cells
+let GRID_SIZE = 8; // Default, will be set by user
+let CELL_SIZE = 600 / GRID_SIZE; // 600px grid / N cells
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    initializeGrid();
-    setupEventListeners();
+    showSetupModal();
 });
+
+// Show setup modal
+function showSetupModal() {
+    const modal = document.getElementById('setupModal');
+    const gridSizeInput = document.getElementById('gridSize');
+    const totalSizeSpan = document.getElementById('totalSize');
+    
+    // Update total size display when grid size changes
+    gridSizeInput.addEventListener('input', () => {
+        const size = parseInt(gridSizeInput.value);
+        const cm = size * 4;
+        totalSizeSpan.textContent = `${cm}cm x ${cm}cm`;
+    });
+    
+    // Start button
+    document.getElementById('startBtn').addEventListener('click', () => {
+        const size = parseInt(gridSizeInput.value);
+        if (size < 4 || size > 16) {
+            alert('Grid size must be between 4 and 16');
+            return;
+        }
+        
+        GRID_SIZE = size;
+        CELL_SIZE = 600 / GRID_SIZE;
+        
+        // Update max values for width/height inputs
+        document.getElementById('width').max = GRID_SIZE;
+        document.getElementById('height').max = GRID_SIZE;
+        
+        // Update grid info
+        const totalCm = GRID_SIZE * 4;
+        document.getElementById('gridInfo').textContent = 
+            `Create and arrange shapes on a ${GRID_SIZE}x${GRID_SIZE} grid (${totalCm}cm x ${totalCm}cm)`;
+        
+        modal.classList.add('hidden');
+        initializeGrid();
+        setupEventListeners();
+    });
+}
 
 // Create the grid cells
 function initializeGrid() {
     const grid = document.getElementById('grid');
+    grid.innerHTML = ''; // Clear existing cells
+    
+    // Set CSS variable for grid size
+    grid.style.setProperty('--grid-size', GRID_SIZE);
+    
     for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
         const cell = document.createElement('div');
         cell.className = 'grid-cell';
@@ -30,6 +73,7 @@ function initializeGrid() {
 function setupEventListeners() {
     document.getElementById('createBtn').addEventListener('click', createShape);
     document.getElementById('clearBtn').addEventListener('click', clearGrid);
+    document.getElementById('resetBtn').addEventListener('click', resetGridSize);
     
     const grid = document.getElementById('grid');
     grid.addEventListener('dragover', handleDragOver);
@@ -329,6 +373,23 @@ function clearGrid() {
         renderPlacedShapes();
         renderShapesList();
         updateColorPalette();
+    }
+}
+
+// Reset grid size
+function resetGridSize() {
+    if (confirm('Reset grid size? This will clear all shapes.')) {
+        // Clear everything
+        shapes = [];
+        placedShapes = [];
+        shapeIdCounter = 0;
+        
+        renderPlacedShapes();
+        renderShapesList();
+        updateColorPalette();
+        
+        // Show setup modal again
+        document.getElementById('setupModal').classList.remove('hidden');
     }
 }
 
