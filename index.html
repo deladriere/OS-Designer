@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Designer - Grid Layout Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>OS Designer</h1>
+            <p class="subtitle">Create and arrange shapes on an 8x8 grid (32cm x 32cm)</p>
+            
+            <div class="form-section">
+                <h2>Create Rectangle</h2>
+                
+                <div class="form-group">
+                    <label for="width">Width (grid units):</label>
+                    <input type="number" id="width" min="1" max="8" value="2">
+                </div>
+                
+                <div class="form-group">
+                    <label for="height">Height (grid units):</label>
+                    <input type="number" id="height" min="1" max="8" value="3">
+                </div>
+                
+                <div class="form-group">
+                    <label for="color">Color:</label>
+                    <input type="color" id="color" value="#3498db">
+                    <div id="colorPalette" class="color-palette"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Orientation:</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="orientation" value="horizontal" checked>
+                            Horizontal
+                        </label>
+                        <label>
+                            <input type="radio" name="orientation" value="vertical">
+                            Vertical
+                        </label>
+                    </div>
+                </div>
+                
+                <button id="createBtn" class="btn-primary">Create Shape</button>
+            </div>
+            
+            <div class="shapes-panel">
+                <h2>Shapes to Place</h2>
+                <div id="shapesList" class="shapes-list">
+                    <p class="empty-message">No shapes created yet</p>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button id="clearBtn" class="btn-secondary">Clear Grid</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="grid-container">
+                <div id="grid" class="grid"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
+
