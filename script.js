@@ -6,52 +6,19 @@ let draggedShape = null;
 let draggedFromGrid = false;
 
 // Grid configuration
+const GRID_TOTAL_SIZE = 600; // Total grid size in pixels
+const GRID_GAP = 1; // Gap between cells in pixels
 let GRID_SIZE = 8; // Default, will be set by user
-let CELL_SIZE = 600 / GRID_SIZE; // 600px grid / N cells
+let CELL_SIZE = GRID_TOTAL_SIZE / GRID_SIZE; // Simple cell size for calculations
+let SCREW_DIAMETER = 4; // mm - diameter of screw holes
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
-    showSetupModal();
+    initializeGrid();
+    setupEventListeners();
+    setupIconMenu();
+    updateGridSizeDisplay();
 });
-
-// Show setup modal
-function showSetupModal() {
-    const modal = document.getElementById('setupModal');
-    const gridSizeInput = document.getElementById('gridSize');
-    const totalSizeSpan = document.getElementById('totalSize');
-    
-    // Update total size display when grid size changes
-    gridSizeInput.addEventListener('input', () => {
-        const size = parseInt(gridSizeInput.value);
-        const cm = size * 4;
-        totalSizeSpan.textContent = `${cm}cm x ${cm}cm`;
-    });
-    
-    // Start button
-    document.getElementById('startBtn').addEventListener('click', () => {
-        const size = parseInt(gridSizeInput.value);
-        if (size < 4 || size > 16) {
-            alert('Grid size must be between 4 and 16');
-            return;
-        }
-        
-        GRID_SIZE = size;
-        CELL_SIZE = 600 / GRID_SIZE;
-        
-        // Update max values for width/height inputs
-        document.getElementById('width').max = GRID_SIZE;
-        document.getElementById('height').max = GRID_SIZE;
-        
-        // Update grid info
-        const totalCm = GRID_SIZE * 4;
-        document.getElementById('gridInfo').textContent = 
-            `Create and arrange shapes on a ${GRID_SIZE}x${GRID_SIZE} grid (${totalCm}cm x ${totalCm}cm)`;
-        
-        modal.classList.add('hidden');
-        initializeGrid();
-        setupEventListeners();
-    });
-}
 
 // Create the grid cells
 function initializeGrid() {
@@ -67,13 +34,41 @@ function initializeGrid() {
         cell.dataset.index = i;
         grid.appendChild(cell);
     }
+    
+    // Add screw holes at grid corners
+    renderScrewHoles();
+}
+
+// Setup icon menu
+function setupIconMenu() {
+    const menuItems = document.querySelectorAll('.menu-item');
+    
+    menuItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Remove active class from all items
+            menuItems.forEach(mi => mi.classList.remove('active'));
+            // Add active to clicked item
+            item.classList.add('active');
+            
+            // Get panel to show
+            const panelName = item.dataset.panel;
+            
+            // Hide all panels
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.style.display = 'none';
+            });
+            
+            // Show selected panel
+            document.getElementById(panelName + 'Panel').style.display = 'block';
+        });
+    });
 }
 
 // Setup all event listeners
 function setupEventListeners() {
     document.getElementById('createBtn').addEventListener('click', createShape);
     document.getElementById('clearBtn').addEventListener('click', clearGrid);
-    document.getElementById('resetBtn').addEventListener('click', resetGridSize);
+    document.getElementById('applyGridBtn').addEventListener('click', applyGridSize);
     
     const grid = document.getElementById('grid');
     grid.addEventListener('dragover', handleDragOver);
@@ -82,6 +77,113 @@ function setupEventListeners() {
     
     // Update color palette when color picker changes
     document.getElementById('color').addEventListener('change', updateColorPalette);
+    
+    // Update total size display when grid size changes
+    const gridSizeInput = document.getElementById('gridSize');
+    gridSizeInput.addEventListener('input', () => {
+        const size = parseInt(gridSizeInput.value);
+        const cm = size * 4;
+        document.getElementById('totalSize').textContent = `${cm}cm x ${cm}cm`;
+    });
+}
+
+// Update grid size display
+function updateGridSizeDisplay() {
+    const totalCm = GRID_SIZE * 4;
+    document.getElementById('gridInfo').textContent = 
+        `Current grid: ${GRID_SIZE}x${GRID_SIZE} (${totalCm}cm x ${totalCm}cm)`;
+    document.getElementById('gridSize').value = GRID_SIZE;
+    document.getElementById('totalSize').textContent = `${totalCm}cm x ${totalCm}cm`;
+    document.getElementById('screwDiameter').value = SCREW_DIAMETER;
+}
+
+// Render screw holes at grid intersections
+function renderScrewHoles() {
+    const grid = document.getElementById('grid');
+    
+    // Remove existing screw holes
+    document.querySelectorAll('.screw-hole').forEach(el => el.remove());
+    
+    // Calculate screw hole size in pixels
+    // 1 grid unit = 4cm = 40mm
+    // CELL_SIZE pixels = 40mm
+    // So 1mm = CELL_SIZE / 40 pixels
+    const screwRadiusPx = (SCREW_DIAMETER / 2) * (CELL_SIZE / 40);
+    
+    // Get actual cell metrics from DOM to ensure perfect alignment
+    const gridCells = Array.from(grid.querySelectorAll('.grid-cell'));
+    const firstRowCells = gridCells.slice(0, GRID_SIZE);
+    const columnEdges = [0];
+    firstRowCells.forEach(cell => {
+        columnEdges.push(cell.offsetLeft + cell.offsetWidth);
+    });
+    
+    const rowEdges = [0];
+    for (let row = 0; row < GRID_SIZE; row++) {
+        const cell = gridCells[row * GRID_SIZE];
+        rowEdges.push(cell.offsetTop + cell.offsetHeight);
+    }
+    
+    // Add screw holes at each grid intersection (corners)
+    for (let row = 0; row <= GRID_SIZE; row++) {
+        for (let col = 0; col <= GRID_SIZE; col++) {
+            const screwHole = document.createElement('div');
+            screwHole.className = 'screw-hole';
+            const left = columnEdges[col];
+            const top = rowEdges[row];
+            
+            screwHole.style.left = `${left}px`;
+            screwHole.style.top = `${top}px`;
+            screwHole.style.width = `${screwRadiusPx * 2}px`;
+            screwHole.style.height = `${screwRadiusPx * 2}px`;
+            screwHole.style.marginLeft = `-${screwRadiusPx}px`;
+            screwHole.style.marginTop = `-${screwRadiusPx}px`;
+            
+            grid.appendChild(screwHole);
+        }
+    }
+}
+
+// Apply grid size
+function applyGridSize() {
+    const size = parseInt(document.getElementById('gridSize').value);
+    const screwDiam = parseFloat(document.getElementById('screwDiameter').value);
+    
+    if (size < 4 || size > 16) {
+        alert('Grid size must be between 4 and 16');
+        return;
+    }
+    
+    if (screwDiam < 1 || screwDiam > 20) {
+        alert('Screw diameter must be between 1 and 20mm');
+        return;
+    }
+    
+    if (placedShapes.length > 0 || shapes.length > 0) {
+        if (!confirm('Changing settings will clear all shapes. Continue?')) {
+            return;
+        }
+    }
+    
+    // Clear everything
+    shapes = [];
+    placedShapes = [];
+    shapeIdCounter = 0;
+    
+    GRID_SIZE = size;
+    CELL_SIZE = GRID_TOTAL_SIZE / GRID_SIZE;
+    SCREW_DIAMETER = screwDiam;
+    
+    // Update max values for width/height inputs
+    document.getElementById('width').max = GRID_SIZE;
+    document.getElementById('height').max = GRID_SIZE;
+    
+    // Re-initialize
+    initializeGrid();
+    updateGridSizeDisplay();
+    renderPlacedShapes();
+    renderShapesList();
+    updateColorPalette();
 }
 
 // Create a new shape
@@ -376,22 +478,6 @@ function clearGrid() {
     }
 }
 
-// Reset grid size
-function resetGridSize() {
-    if (confirm('Reset grid size? This will clear all shapes.')) {
-        // Clear everything
-        shapes = [];
-        placedShapes = [];
-        shapeIdCounter = 0;
-        
-        renderPlacedShapes();
-        renderShapesList();
-        updateColorPalette();
-        
-        // Show setup modal again
-        document.getElementById('setupModal').classList.remove('hidden');
-    }
-}
 
 // Delete a shape from the grid
 function deleteShape(placedId) {
