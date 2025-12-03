@@ -1464,6 +1464,22 @@ function equals(p1, p2) {
     return p1.x === p2.x && p1.y === p2.y;
 }
 
+function getLeftmost(start) {
+    let p = start;
+    let leftmost = start;
+    do {
+        if (p.x < leftmost.x || (p.x === leftmost.x && p.y < leftmost.y)) leftmost = p;
+        p = p.next;
+    } while (p !== start);
+    return leftmost;
+}
+
+function locallyInside(a, b) {
+    return area(a.prev, a, a.next) < 0 ?
+        area(a, b, a.next) >= 0 && area(a, a.prev, b) >= 0 :
+        area(a, b, a.prev) < 0 || area(a, a.next, b) < 0;
+}
+
 earcut.flatten = function (rings) {
     const dim = 2;
     const result = { vertices: [], holes: [], dim };
@@ -1483,12 +1499,13 @@ earcut.flatten = function (rings) {
     return result;
 };
 
-// Create 3D frame geometry using Three.js
+// Create 3D frame geometry using three-bvh-csg for CSG operations
 function createFrameGeometry() {
+    console.log('Using CSG.js for geometry generation');
+    
     const thickness = parseFloat(document.getElementById('panelThickness').value) || 3;
     const fillCenter = document.getElementById('fillCenter').checked;
     
-    // Dimensions in mm
     const borderX = OUTER_BORDER_LR_CM * 10;
     const borderY = OUTER_BORDER_TB_CM * 10;
     const innerW = GRID_SIZE_X * 40;
@@ -1498,80 +1515,58 @@ function createFrameGeometry() {
     const screwR = SCREW_DIAMETER / 2;
     const segments = 32;
     
-    // Create outer rectangle shape
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 0);
-    shape.lineTo(W, 0);
-    shape.lineTo(W, H);
-    shape.lineTo(0, H);
-    shape.closePath();
+    // Check if CSG is available
+    if (typeof CSG === 'undefined') {
+        throw new Error('CSG.js library not loaded');
+    }
+    console.log('CSG loaded, version:', CSG.VERSION || 'unknown');
     
-    // Add center cutout (frame mode) - DEFAULT unless fillCenter is checked
+    // Step 1: Create base box using CSG.fromPolygons or cube center/radius approach
+    // CSG.cube takes center and radius params
+    let result = CSG.cube({
+        center: [W/2, H/2, thickness/2],
+        radius: [W/2, H/2, thickness/2]
+    });
+    
+    // Step 2: If frame mode, subtract central cutout
     if (!fillCenter) {
-        // Small inset so cutout doesn't exactly touch screw holes
-        const inset = screwR;
-        const hx = borderX + inset;
-        const hy = borderY + inset;
-        const hw = innerW - 2 * inset;
-        const hh = innerH - 2 * inset;
+        // Cutout extends to corner hole centers
+        const cutoutW = W - 2 * borderX;
+        const cutoutH = H - 2 * borderY;
         
-        const cutout = new THREE.Path();
-        cutout.moveTo(hx, hy);
-        cutout.lineTo(hx + hw, hy);
-        cutout.lineTo(hx + hw, hy + hh);
-        cutout.lineTo(hx, hy + hh);
-        cutout.lineTo(hx, hy);
-        shape.holes.push(cutout);
-        
-        // Add screw holes on perimeter
-        for (let row = 0; row <= GRID_SIZE_Y; row++) {
-            for (let col = 0; col <= GRID_SIZE_X; col++) {
+        const cutout = CSG.cube({
+            center: [W/2, H/2, thickness/2],
+            radius: [cutoutW/2, cutoutH/2, thickness/2 + 0.5]
+        });
+        result = result.subtract(cutout);
+    }
+    
+    // Step 3: Subtract screw holes
+    for (let row = 0; row <= GRID_SIZE_Y; row++) {
+        for (let col = 0; col <= GRID_SIZE_X; col++) {
+            // In frame mode, only subtract perimeter holes
+            if (!fillCenter) {
                 const isPerimeter = (row === 0 || row === GRID_SIZE_Y || col === 0 || col === GRID_SIZE_X);
                 if (!isPerimeter) continue;
-                
-                const cx = borderX + col * 40;
-                const cy = borderY + row * 40;
-                
-                const hole = new THREE.Path();
-                for (let i = 0; i <= segments; i++) {
-                    const angle = (i / segments) * Math.PI * 2;
-                    const x = cx + screwR * Math.cos(angle);
-                    const y = cy + screwR * Math.sin(angle);
-                    if (i === 0) hole.moveTo(x, y);
-                    else hole.lineTo(x, y);
-                }
-                hole.closePath();
-                shape.holes.push(hole);
             }
-        }
-    } else {
-        // Fill center - solid plate with screw holes at ALL grid intersections
-        for (let row = 0; row <= GRID_SIZE_Y; row++) {
-            for (let col = 0; col <= GRID_SIZE_X; col++) {
-                const cx = borderX + col * 40;
-                const cy = borderY + row * 40;
-                
-                const hole = new THREE.Path();
-                for (let i = 0; i <= segments; i++) {
-                    const angle = (i / segments) * Math.PI * 2;
-                    const x = cx + screwR * Math.cos(angle);
-                    const y = cy + screwR * Math.sin(angle);
-                    if (i === 0) hole.moveTo(x, y);
-                    else hole.lineTo(x, y);
-                }
-                hole.closePath();
-                shape.holes.push(hole);
-            }
+            
+            const cx = borderX + col * 40;
+            const cy = borderY + row * 40;
+            
+            // Create cylinder
+            const hole = CSG.cylinder({
+                start: [cx, cy, -0.5],
+                end: [cx, cy, thickness + 0.5],
+                radius: screwR,
+                slices: segments
+            });
+            
+            result = result.subtract(hole);
         }
     }
     
-    // Extrude the shape
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: thickness,
-        bevelEnabled: false
-    });
-    
-    return { geometry, W, H, thickness };
+    // Return the CSG geometry object along with dimensions
+    return { csgGeometry: result, W, H, thickness };
 }
 
 // 3D Preview state
@@ -1579,13 +1574,64 @@ let previewScene, previewCamera, previewRenderer, previewControls, previewMesh;
 
 // Initialize or update 3D preview
 function previewSTL() {
+    console.log('Starting preview with CSG.js geometry...');
     const container = document.getElementById('stlPreviewContainer');
     const canvas = document.getElementById('stlPreviewCanvas');
+    
+    if (!container || !canvas) {
+        console.error('Preview container or canvas not found');
+        return;
+    }
     
     // Show the preview container
     container.style.display = 'block';
     
-    const { geometry, W, H, thickness } = createFrameGeometry();
+    let csgGeometry, W, H, thickness;
+    try {
+        const result = createFrameGeometry();
+        csgGeometry = result.csgGeometry;
+        W = result.W;
+        H = result.H;
+        thickness = result.thickness;
+        console.log('CSG Geometry created:', W, 'x', H, 'x', thickness);
+    } catch (e) {
+        console.error('Error creating geometry:', e);
+        return;
+    }
+    
+    // Convert CSG to THREE.js geometry
+    let geometry;
+    try {
+        // CSG.js has a toMesh() method that creates THREE.js compatible data
+        const polygons = csgGeometry.toPolygons();
+        const vertices = [];
+        const indices = [];
+        let vertexIndex = 0;
+        
+        polygons.forEach(polygon => {
+            const firstVertexIndex = vertexIndex;
+            polygon.vertices.forEach(vertex => {
+                vertices.push(vertex.pos.x, vertex.pos.y, vertex.pos.z);
+            });
+            
+            // Triangulate polygon (fan triangulation)
+            for (let i = 1; i < polygon.vertices.length - 1; i++) {
+                indices.push(firstVertexIndex, firstVertexIndex + i, firstVertexIndex + i + 1);
+            }
+            
+            vertexIndex += polygon.vertices.length;
+        });
+        
+        geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        
+        console.log('THREE.js geometry created');
+    } catch (e) {
+        console.error('Error converting to THREE.js geometry:', e);
+        return;
+    }
     
     // Initialize Three.js scene if needed
     if (!previewScene) {
@@ -1656,11 +1702,14 @@ function previewSTL() {
     previewMesh.position.set(-W/2, -H/2, -thickness/2);
     previewScene.add(previewMesh);
     
-    // Position camera
+    // Position camera for isometric-style view (looking down at the plate)
     const maxDim = Math.max(W, H);
-    previewCamera.position.set(0, 0, maxDim * 1.5);
+    const distance = maxDim * 1.5;
+    previewCamera.position.set(distance * 0.5, distance * 0.5, distance * 0.7);
     previewControls.target.set(0, 0, 0);
     previewControls.update();
+    
+    console.log('Preview updated successfully');
 }
 
 // Close 3D preview
@@ -1671,25 +1720,21 @@ function closePreview() {
 
 // Export outer frame as watertight STL for 3D printing using Three.js
 function exportSTL() {
-    const { geometry, W, H, thickness } = createFrameGeometry();
+    console.log('Exporting STL using CSG.js...');
     
-    // Create mesh
-    const material = new THREE.MeshBasicMaterial();
-    const mesh = new THREE.Mesh(geometry, material);
+    const { csgGeometry, W, H, thickness } = createFrameGeometry();
     
-    // Export to STL
-    const exporter = new THREE.STLExporter();
-    const stlData = exporter.parse(mesh, { binary: true });
+    // Convert CSG to STL string (binary format)
+    const stlString = csgGeometry.toStlString();
     
-    // Cleanup
-    geometry.dispose();
-    
-    // Download
-    const blob = new Blob([stlData], { type: 'application/octet-stream' });
+    // Convert to blob and download
+    const blob = new Blob([stlString], { type: 'application/sla' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `frame-${W}x${H}x${thickness}mm.stl`;
     link.click();
+    
+    console.log('STL export complete!');
     
     // Button feedback
     const btn = document.getElementById('exportSTLBtn');
