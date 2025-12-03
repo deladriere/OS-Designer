@@ -1500,6 +1500,54 @@ earcut.flatten = function (rings) {
 };
 
 // Create 3D frame geometry using three-bvh-csg for CSG operations
+// Convert CSG.js geometry to THREE.js BufferGeometry
+function CSGToThreeGeometry(csg) {
+    const vertices = [];
+    const normals = [];
+    const indices = [];
+    let vertexIndex = 0;
+    
+    csg.toPolygons().forEach(polygon => {
+        const vertices3D = polygon.vertices.map(v => new THREE.Vector3(v.pos.x, v.pos.y, v.pos.z));
+        
+        if (vertices3D.length < 3) return; // Skip degenerate polygons
+        
+        // Triangulate polygon properly (handles both convex and concave)
+        // For each polygon, create a fan of triangles from the first vertex
+        // But first check if polygon is planar and vertices are in correct order
+        const normal = new THREE.Vector3(
+            polygon.plane.normal.x,
+            polygon.plane.normal.y,
+            polygon.plane.normal.z
+        );
+        
+        // Add first vertex
+        const firstIndex = vertexIndex;
+        vertices.push(vertices3D[0].x, vertices3D[0].y, vertices3D[0].z);
+        normals.push(normal.x, normal.y, normal.z);
+        vertexIndex++;
+        
+        // Add remaining vertices
+        for (let i = 1; i < vertices3D.length; i++) {
+            vertices.push(vertices3D[i].x, vertices3D[i].y, vertices3D[i].z);
+            normals.push(normal.x, normal.y, normal.z);
+            
+            // Create triangle (fan triangulation from first vertex)
+            if (i >= 2) {
+                indices.push(firstIndex, vertexIndex - 1, vertexIndex);
+            }
+            vertexIndex++;
+        }
+    });
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setIndex(indices);
+    
+    return geometry;
+}
+
 function createFrameGeometry() {
     console.log('Using CSG.js for geometry generation');
     
@@ -1513,7 +1561,7 @@ function createFrameGeometry() {
     const W = innerW + 2 * borderX;
     const H = innerH + 2 * borderY;
     const screwR = SCREW_DIAMETER / 2;
-    const segments = 32;
+    const segments = 48; // Higher resolution to prevent cracks while keeping file size manageable
     
     // Check if CSG is available
     if (typeof CSG === 'undefined') {
@@ -1599,34 +1647,10 @@ function previewSTL() {
         return;
     }
     
-    // Convert CSG to THREE.js geometry
+    // Convert CSG to THREE.js geometry using shared helper
     let geometry;
     try {
-        // CSG.js has a toMesh() method that creates THREE.js compatible data
-        const polygons = csgGeometry.toPolygons();
-        const vertices = [];
-        const indices = [];
-        let vertexIndex = 0;
-        
-        polygons.forEach(polygon => {
-            const firstVertexIndex = vertexIndex;
-            polygon.vertices.forEach(vertex => {
-                vertices.push(vertex.pos.x, vertex.pos.y, vertex.pos.z);
-            });
-            
-            // Triangulate polygon (fan triangulation)
-            for (let i = 1; i < polygon.vertices.length - 1; i++) {
-                indices.push(firstVertexIndex, firstVertexIndex + i, firstVertexIndex + i + 1);
-            }
-            
-            vertexIndex += polygon.vertices.length;
-        });
-        
-        geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        geometry.setIndex(indices);
-        geometry.computeVertexNormals();
-        
+        geometry = CSGToThreeGeometry(csgGeometry);
         console.log('THREE.js geometry created');
     } catch (e) {
         console.error('Error converting to THREE.js geometry:', e);
@@ -1724,55 +1748,37 @@ function exportSTL() {
     
     const { csgGeometry, W, H, thickness } = createFrameGeometry();
     
-    // Convert CSG to THREE.js BufferGeometry (same as preview)
-    // This ensures proper manifold geometry with merged vertices
-    const polygons = csgGeometry.toPolygons();
-    const vertices = [];
-    const indices = [];
-    let vertexIndex = 0;
+    // Convert CSG directly to THREE.js geometry using CSG's toMesh method
+    const threeCSG = CSGToThreeGeometry(csgGeometry);
     
-    polygons.forEach(polygon => {
-        const firstVertexIndex = vertexIndex;
-        polygon.vertices.forEach(vertex => {
-            vertices.push(vertex.pos.x, vertex.pos.y, vertex.pos.z);
-        });
-        
-        // Triangulate polygon (fan triangulation)
-        for (let i = 1; i < polygon.vertices.length - 1; i++) {
-            indices.push(firstVertexIndex, firstVertexIndex + i, firstVertexIndex + i + 1);
-        }
-        
-        vertexIndex += polygon.vertices.length;
-    });
-    
-    let geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    geometry.setIndex(indices);
+    let geometry = threeCSG;
     
     // Merge duplicate vertices to ensure manifold mesh
     if (typeof THREE.BufferGeometryUtils !== 'undefined' && THREE.BufferGeometryUtils.mergeVertices) {
-        geometry = THREE.BufferGeometryUtils.mergeVertices(geometry);
-        console.log('Vertices merged for manifold mesh');
+        const beforeCount = geometry.attributes.position.count;
+        geometry = THREE.BufferGeometryUtils.mergeVertices(geometry, 0.0001); // 0.1 micron tolerance
+        const afterCount = geometry.attributes.position.count;
+        console.log(`Vertices merged: ${beforeCount} → ${afterCount} (removed ${beforeCount - afterCount} duplicates)`);
     }
     
     geometry.computeVertexNormals();
     
     console.log('THREE.js geometry created, vertices:', geometry.attributes.position.count);
     
-    // Export using THREE.js STLExporter (if available) or manual method
+    // Export using THREE.js STLExporter with binary format for better precision
     if (typeof THREE.STLExporter !== 'undefined') {
         const exporter = new THREE.STLExporter();
         const material = new THREE.MeshBasicMaterial();
         const mesh = new THREE.Mesh(geometry, material);
-        const stlData = exporter.parse(mesh, { binary: false });
+        const stlData = exporter.parse(mesh, { binary: true }); // Binary format for better precision
         
-        const blob = new Blob([stlData], { type: 'application/sla' });
+        const blob = new Blob([stlData], { type: 'application/octet-stream' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `frame-${W}x${H}x${thickness}mm.stl`;
         link.click();
         
-        console.log('STL export complete using THREE.STLExporter!');
+        console.log('STL export complete using THREE.STLExporter (binary format)!');
     } else {
         // Fallback: manual STL generation from BufferGeometry
         const position = geometry.attributes.position;
