@@ -619,3 +619,68 @@ body {
     margin-right: 6px;
 }
 
+/* STL Preview */
+.stl-preview-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #1a1a2e;
+    z-index: 100;
+}
+
+.stl-preview-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+.close-preview-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 101;
+    transition: background 0.2s;
+}
+
+.close-preview-btn:hover {
+    background: #c0392b;
+}
+
+.close-preview-btn i {
+    margin-right: 6px;
+}
+
+.button-row {
+    display: flex;
+    gap: 10px;
+}
+
+.button-row .btn-secondary,
+.button-row .btn-export {
+    flex: 1;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+

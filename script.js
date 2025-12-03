@@ -118,8 +118,18 @@ function setupEventListeners() {
     });
     document.getElementById('loadProjectInput').addEventListener('change', loadProject);
     
-    // STL export
+    // STL export and preview
     document.getElementById('exportSTLBtn').addEventListener('click', exportSTL);
+    document.getElementById('previewSTLBtn').addEventListener('click', previewSTL);
+    document.getElementById('closePreviewBtn').addEventListener('click', closePreview);
+    document.getElementById('fillCenter').addEventListener('change', () => {
+        const container = document.getElementById('stlPreviewContainer');
+        if (container.style.display !== 'none') previewSTL();
+    });
+    document.getElementById('panelThickness').addEventListener('change', () => {
+        const container = document.getElementById('stlPreviewContainer');
+        if (container.style.display !== 'none') previewSTL();
+    });
 
     const grid = document.getElementById('grid');
     grid.addEventListener('dragover', handleDragOver);
@@ -1473,266 +1483,222 @@ earcut.flatten = function (rings) {
     return result;
 };
 
-// Export outer frame as watertight STL for 3D printing
-function exportSTL() {
+// Create 3D frame geometry using Three.js
+function createFrameGeometry() {
     const thickness = parseFloat(document.getElementById('panelThickness').value) || 3;
+    const fillCenter = document.getElementById('fillCenter').checked;
     
-    // Calculate dimensions in mm
-    const gridWidthMM = GRID_SIZE_X * 40;
-    const gridHeightMM = GRID_SIZE_Y * 40;
-    const borderLR_MM = OUTER_BORDER_LR_CM * 10;
-    const borderTB_MM = OUTER_BORDER_TB_CM * 10;
-    const screwRadius = SCREW_DIAMETER / 2;
-    const unitSizeMM = 40;
+    // Dimensions in mm
+    const borderX = OUTER_BORDER_LR_CM * 10;
+    const borderY = OUTER_BORDER_TB_CM * 10;
+    const innerW = GRID_SIZE_X * 40;
+    const innerH = GRID_SIZE_Y * 40;
+    const W = innerW + 2 * borderX;
+    const H = innerH + 2 * borderY;
+    const screwR = SCREW_DIAMETER / 2;
+    const segments = 32;
     
-    // Outer dimensions
-    const outerWidth = gridWidthMM + (2 * borderLR_MM);
-    const outerHeight = gridHeightMM + (2 * borderTB_MM);
+    // Create outer rectangle shape
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.lineTo(W, 0);
+    shape.lineTo(W, H);
+    shape.lineTo(0, H);
+    shape.closePath();
     
-    // Inner rectangle (grid cutout)
-    const innerX = borderLR_MM;
-    const innerY = borderTB_MM;
-    const innerW = gridWidthMM;
-    const innerH = gridHeightMM;
-    
-    const z0 = 0;
-    const z1 = thickness;
-    const segments = 24; // Circle segments
-    
-    // Collect screw holes on perimeter
-    const holes = [];
-    for (let row = 0; row <= GRID_SIZE_Y; row++) {
-        for (let col = 0; col <= GRID_SIZE_X; col++) {
-            if (row === 0 || row === GRID_SIZE_Y || col === 0 || col === GRID_SIZE_X) {
-                holes.push({
-                    cx: innerX + col * unitSizeMM,
-                    cy: innerY + row * unitSizeMM,
-                    r: screwRadius
-                });
-            }
-        }
-    }
-    
-    // Binary STL format for better compatibility
-    const triangles = [];
-    
-    function tri(v1, v2, v3) {
-        // Calculate normal using cross product
-        const u = [v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2]];
-        const v = [v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2]];
-        const n = [
-            u[1] * v[2] - u[2] * v[1],
-            u[2] * v[0] - u[0] * v[2],
-            u[0] * v[1] - u[1] * v[0]
-        ];
-        const len = Math.sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
-        if (len > 0) {
-            n[0] /= len; n[1] /= len; n[2] /= len;
-        }
-        triangles.push({ n, v1, v2, v3 });
-    }
-    
-    function quad(a, b, c, d) {
-        tri(a, b, c);
-        tri(a, c, d);
-    }
-    
-    // Helper: check if point is inside a hole
-    function inHole(x, y) {
-        for (const h of holes) {
-            const dx = x - h.cx, dy = y - h.cy;
-            if (dx*dx + dy*dy <= h.r * h.r) return true;
-        }
-        return false;
-    }
-    
-    // Helper: check if point is in cutout
-    function inCutout(x, y) {
-        return x > innerX && x < innerX + innerW && y > innerY && y < innerY + innerH;
-    }
-    
-    // Create surfaces with holes using triangles that connect hole edges to frame
-    // For each hole, create triangles fanning from hole edge to a bounding box
-    function createHoleSurface(h, z, flipNormal) {
-        const margin = h.r * 1.5; // Box around hole
-        const bx1 = h.cx - margin, by1 = h.cy - margin;
-        const bx2 = h.cx + margin, by2 = h.cy + margin;
+    // Add center cutout (frame mode) - DEFAULT unless fillCenter is checked
+    if (!fillCenter) {
+        // Small inset so cutout doesn't exactly touch screw holes
+        const inset = screwR;
+        const hx = borderX + inset;
+        const hy = borderY + inset;
+        const hw = innerW - 2 * inset;
+        const hh = innerH - 2 * inset;
         
-        for (let i = 0; i < segments; i++) {
-            const a1 = (i / segments) * Math.PI * 2;
-            const a2 = ((i + 1) / segments) * Math.PI * 2;
-            const aMid = (a1 + a2) / 2;
-            
-            // Points on hole edge
-            const hx1 = h.cx + h.r * Math.cos(a1);
-            const hy1 = h.cy + h.r * Math.sin(a1);
-            const hx2 = h.cx + h.r * Math.cos(a2);
-            const hy2 = h.cy + h.r * Math.sin(a2);
-            
-            // Point on bounding box (project outward)
-            const dx = Math.cos(aMid), dy = Math.sin(aMid);
-            let bx, by;
-            // Find intersection with bounding box
-            const tx = dx > 0 ? (bx2 - h.cx) / dx : dx < 0 ? (bx1 - h.cx) / dx : Infinity;
-            const ty = dy > 0 ? (by2 - h.cy) / dy : dy < 0 ? (by1 - h.cy) / dy : Infinity;
-            const t = Math.min(Math.abs(tx), Math.abs(ty));
-            bx = h.cx + dx * t;
-            by = h.cy + dy * t;
-            
-            // Skip if box point is in cutout
-            if (inCutout(bx, by)) continue;
-            // Skip if box point is outside frame
-            if (bx < 0 || bx > outerWidth || by < 0 || by > outerHeight) continue;
-            
-            // Create triangle from hole edge to box point
-            if (flipNormal) {
-                tri([hx2, hy2, z], [hx1, hy1, z], [bx, by, z]);
-            } else {
-                tri([hx1, hy1, z], [hx2, hy2, z], [bx, by, z]);
-            }
-        }
-    }
-    
-    // Create frame surfaces with grid, skipping cells entirely inside holes
-    const gridRes = 2; // mm
-    function createFrameSurface(x1, y1, x2, y2, z, flipNormal) {
-        const nx = Math.max(1, Math.ceil((x2 - x1) / gridRes));
-        const ny = Math.max(1, Math.ceil((y2 - y1) / gridRes));
-        const dx = (x2 - x1) / nx;
-        const dy = (y2 - y1) / ny;
+        const cutout = new THREE.Path();
+        cutout.moveTo(hx, hy);
+        cutout.lineTo(hx + hw, hy);
+        cutout.lineTo(hx + hw, hy + hh);
+        cutout.lineTo(hx, hy + hh);
+        cutout.lineTo(hx, hy);
+        shape.holes.push(cutout);
         
-        for (let i = 0; i < nx; i++) {
-            for (let j = 0; j < ny; j++) {
-                const cx0 = x1 + i * dx;
-                const cy0 = y1 + j * dy;
-                const cx1 = cx0 + dx;
-                const cy1 = cy0 + dy;
+        // Add screw holes on perimeter
+        for (let row = 0; row <= GRID_SIZE_Y; row++) {
+            for (let col = 0; col <= GRID_SIZE_X; col++) {
+                const isPerimeter = (row === 0 || row === GRID_SIZE_Y || col === 0 || col === GRID_SIZE_X);
+                if (!isPerimeter) continue;
                 
-                // Check center of cell
-                const centerX = (cx0 + cx1) / 2;
-                const centerY = (cy0 + cy1) / 2;
+                const cx = borderX + col * 40;
+                const cy = borderY + row * 40;
                 
-                // Skip if cell center is inside any hole
-                if (inHole(centerX, centerY)) continue;
-                
-                // Draw quad
-                if (flipNormal) {
-                    quad([cx0,cy0,z], [cx0,cy1,z], [cx1,cy1,z], [cx1,cy0,z]);
-                } else {
-                    quad([cx0,cy0,z], [cx1,cy0,z], [cx1,cy1,z], [cx0,cy1,z]);
+                const hole = new THREE.Path();
+                for (let i = 0; i <= segments; i++) {
+                    const angle = (i / segments) * Math.PI * 2;
+                    const x = cx + screwR * Math.cos(angle);
+                    const y = cy + screwR * Math.sin(angle);
+                    if (i === 0) hole.moveTo(x, y);
+                    else hole.lineTo(x, y);
                 }
+                hole.closePath();
+                shape.holes.push(hole);
+            }
+        }
+    } else {
+        // Fill center - solid plate with screw holes at ALL grid intersections
+        for (let row = 0; row <= GRID_SIZE_Y; row++) {
+            for (let col = 0; col <= GRID_SIZE_X; col++) {
+                const cx = borderX + col * 40;
+                const cy = borderY + row * 40;
+                
+                const hole = new THREE.Path();
+                for (let i = 0; i <= segments; i++) {
+                    const angle = (i / segments) * Math.PI * 2;
+                    const x = cx + screwR * Math.cos(angle);
+                    const y = cy + screwR * Math.sin(angle);
+                    if (i === 0) hole.moveTo(x, y);
+                    else hole.lineTo(x, y);
+                }
+                hole.closePath();
+                shape.holes.push(hole);
             }
         }
     }
     
-    // Frame regions (excluding inner cutout)
-    const regions = [
-        [0, 0, innerX, outerHeight],           // Left
-        [innerX + innerW, 0, outerWidth, outerHeight], // Right
-        [innerX, 0, innerX + innerW, innerY],  // Top middle
-        [innerX, innerY + innerH, innerX + innerW, outerHeight], // Bottom middle
-    ];
+    // Extrude the shape
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: thickness,
+        bevelEnabled: false
+    });
     
-    // Create top surfaces
-    for (const [rx1, ry1, rx2, ry2] of regions) {
-        createFrameSurface(rx1, ry1, rx2, ry2, z1, false);
-    }
-    // Create bottom surfaces  
-    for (const [rx1, ry1, rx2, ry2] of regions) {
-        createFrameSurface(rx1, ry1, rx2, ry2, z0, true);
-    }
+    return { geometry, W, H, thickness };
+}
+
+// 3D Preview state
+let previewScene, previewCamera, previewRenderer, previewControls, previewMesh;
+
+// Initialize or update 3D preview
+function previewSTL() {
+    const container = document.getElementById('stlPreviewContainer');
+    const canvas = document.getElementById('stlPreviewCanvas');
     
-    // Create hole ring surfaces (connect hole edge to surrounding grid)
-    for (const h of holes) {
-        createHoleSurface(h, z1, false); // Top
-        createHoleSurface(h, z0, true);  // Bottom
-    }
+    // Show the preview container
+    container.style.display = 'block';
     
-    // Outer walls
-    quad([0,0,z0], [outerWidth,0,z0], [outerWidth,0,z1], [0,0,z1]);
-    quad([outerWidth,0,z0], [outerWidth,outerHeight,z0], [outerWidth,outerHeight,z1], [outerWidth,0,z1]);
-    quad([outerWidth,outerHeight,z0], [0,outerHeight,z0], [0,outerHeight,z1], [outerWidth,outerHeight,z1]);
-    quad([0,outerHeight,z0], [0,0,z0], [0,0,z1], [0,outerHeight,z1]);
+    const { geometry, W, H, thickness } = createFrameGeometry();
     
-    // Inner walls (cutout)
-    quad([innerX,innerY,z0], [innerX,innerY,z1], [innerX+innerW,innerY,z1], [innerX+innerW,innerY,z0]);
-    quad([innerX+innerW,innerY,z0], [innerX+innerW,innerY,z1], [innerX+innerW,innerY+innerH,z1], [innerX+innerW,innerY+innerH,z0]);
-    quad([innerX+innerW,innerY+innerH,z0], [innerX+innerW,innerY+innerH,z1], [innerX,innerY+innerH,z1], [innerX,innerY+innerH,z0]);
-    quad([innerX,innerY+innerH,z0], [innerX,innerY+innerH,z1], [innerX,innerY,z1], [innerX,innerY,z0]);
-    
-    // Cylinder walls for each hole (connect top and bottom hole edges)
-    for (const h of holes) {
-        for (let i = 0; i < segments; i++) {
-            const a1 = (i / segments) * Math.PI * 2;
-            const a2 = ((i + 1) / segments) * Math.PI * 2;
-            
-            const x1 = h.cx + h.r * Math.cos(a1);
-            const y1 = h.cy + h.r * Math.sin(a1);
-            const x2 = h.cx + h.r * Math.cos(a2);
-            const y2 = h.cy + h.r * Math.sin(a2);
-            
-            // Cylinder wall - normals point inward (into the hole)
-            quad([x1,y1,z0], [x2,y2,z0], [x2,y2,z1], [x1,y1,z1]);
+    // Initialize Three.js scene if needed
+    if (!previewScene) {
+        previewScene = new THREE.Scene();
+        previewScene.background = new THREE.Color(0x1a1a2e);
+        
+        // Camera
+        previewCamera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 10000);
+        
+        // Renderer
+        previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        previewRenderer.setSize(container.clientWidth, container.clientHeight);
+        
+        // Controls
+        previewControls = new THREE.OrbitControls(previewCamera, previewRenderer.domElement);
+        previewControls.enableDamping = true;
+        
+        // Lights
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        previewScene.add(ambient);
+        const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+        directional.position.set(1, 1, 1);
+        previewScene.add(directional);
+        const directional2 = new THREE.DirectionalLight(0xffffff, 0.4);
+        directional2.position.set(-1, -1, -1);
+        previewScene.add(directional2);
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            if (container.style.display !== 'none') {
+                previewControls.update();
+                previewRenderer.render(previewScene, previewCamera);
+            }
         }
+        animate();
+        
+        // Handle resize
+        window.addEventListener('resize', () => {
+            if (container.style.display !== 'none') {
+                previewCamera.aspect = container.clientWidth / container.clientHeight;
+                previewCamera.updateProjectionMatrix();
+                previewRenderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        });
+    } else {
+        // Update renderer size
+        previewCamera.aspect = container.clientWidth / container.clientHeight;
+        previewCamera.updateProjectionMatrix();
+        previewRenderer.setSize(container.clientWidth, container.clientHeight);
     }
     
-    // Generate binary STL
-    const numTriangles = triangles.length;
-    const bufferSize = 84 + numTriangles * 50;
-    const buffer = new ArrayBuffer(bufferSize);
-    const view = new DataView(buffer);
-    
-    // Header (80 bytes)
-    const header = "OS Designer Frame STL";
-    for (let i = 0; i < 80; i++) {
-        view.setUint8(i, i < header.length ? header.charCodeAt(i) : 0);
+    // Remove old mesh
+    if (previewMesh) {
+        previewScene.remove(previewMesh);
+        previewMesh.geometry.dispose();
     }
     
-    // Number of triangles (4 bytes)
-    view.setUint32(80, numTriangles, true);
+    // Create new mesh
+    const material = new THREE.MeshPhongMaterial({ 
+        color: 0x667eea, 
+        flatShading: false,
+        side: THREE.DoubleSide
+    });
+    previewMesh = new THREE.Mesh(geometry, material);
     
-    // Triangles
-    let offset = 84;
-    for (const t of triangles) {
-        // Normal
-        view.setFloat32(offset, t.n[0], true); offset += 4;
-        view.setFloat32(offset, t.n[1], true); offset += 4;
-        view.setFloat32(offset, t.n[2], true); offset += 4;
-        // Vertex 1
-        view.setFloat32(offset, t.v1[0], true); offset += 4;
-        view.setFloat32(offset, t.v1[1], true); offset += 4;
-        view.setFloat32(offset, t.v1[2], true); offset += 4;
-        // Vertex 2
-        view.setFloat32(offset, t.v2[0], true); offset += 4;
-        view.setFloat32(offset, t.v2[1], true); offset += 4;
-        view.setFloat32(offset, t.v2[2], true); offset += 4;
-        // Vertex 3
-        view.setFloat32(offset, t.v3[0], true); offset += 4;
-        view.setFloat32(offset, t.v3[1], true); offset += 4;
-        view.setFloat32(offset, t.v3[2], true); offset += 4;
-        // Attribute byte count
-        view.setUint16(offset, 0, true); offset += 2;
-    }
+    // Center the mesh
+    previewMesh.position.set(-W/2, -H/2, -thickness/2);
+    previewScene.add(previewMesh);
+    
+    // Position camera
+    const maxDim = Math.max(W, H);
+    previewCamera.position.set(0, 0, maxDim * 1.5);
+    previewControls.target.set(0, 0, 0);
+    previewControls.update();
+}
+
+// Close 3D preview
+function closePreview() {
+    const container = document.getElementById('stlPreviewContainer');
+    container.style.display = 'none';
+}
+
+// Export outer frame as watertight STL for 3D printing using Three.js
+function exportSTL() {
+    const { geometry, W, H, thickness } = createFrameGeometry();
+    
+    // Create mesh
+    const material = new THREE.MeshBasicMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    
+    // Export to STL
+    const exporter = new THREE.STLExporter();
+    const stlData = exporter.parse(mesh, { binary: true });
+    
+    // Cleanup
+    geometry.dispose();
     
     // Download
-    const blob = new Blob([buffer], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([stlData], { type: 'application/octet-stream' });
     const link = document.createElement('a');
-    link.href = url;
-    link.download = `os-frame-${GRID_SIZE_X}x${GRID_SIZE_Y}-${thickness}mm.stl`;
-    document.body.appendChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `frame-${W}x${H}x${thickness}mm.stl`;
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
     
-    // Visual feedback
+    // Button feedback
     const btn = document.getElementById('exportSTLBtn');
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-check"></i> Downloaded!';
-    btn.disabled = true;
-    setTimeout(() => {
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
-    }, 1500);
+    if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Done!';
+        btn.disabled = true;
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
+    }
 }
+
 
