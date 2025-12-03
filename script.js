@@ -1724,17 +1724,94 @@ function exportSTL() {
     
     const { csgGeometry, W, H, thickness } = createFrameGeometry();
     
-    // Convert CSG to STL string (binary format)
-    const stlString = csgGeometry.toStlString();
+    // Convert CSG to THREE.js BufferGeometry (same as preview)
+    // This ensures proper manifold geometry with merged vertices
+    const polygons = csgGeometry.toPolygons();
+    const vertices = [];
+    const indices = [];
+    let vertexIndex = 0;
     
-    // Convert to blob and download
-    const blob = new Blob([stlString], { type: 'application/sla' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `frame-${W}x${H}x${thickness}mm.stl`;
-    link.click();
+    polygons.forEach(polygon => {
+        const firstVertexIndex = vertexIndex;
+        polygon.vertices.forEach(vertex => {
+            vertices.push(vertex.pos.x, vertex.pos.y, vertex.pos.z);
+        });
+        
+        // Triangulate polygon (fan triangulation)
+        for (let i = 1; i < polygon.vertices.length - 1; i++) {
+            indices.push(firstVertexIndex, firstVertexIndex + i, firstVertexIndex + i + 1);
+        }
+        
+        vertexIndex += polygon.vertices.length;
+    });
     
-    console.log('STL export complete!');
+    let geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    
+    // Merge duplicate vertices to ensure manifold mesh
+    if (typeof THREE.BufferGeometryUtils !== 'undefined' && THREE.BufferGeometryUtils.mergeVertices) {
+        geometry = THREE.BufferGeometryUtils.mergeVertices(geometry);
+        console.log('Vertices merged for manifold mesh');
+    }
+    
+    geometry.computeVertexNormals();
+    
+    console.log('THREE.js geometry created, vertices:', geometry.attributes.position.count);
+    
+    // Export using THREE.js STLExporter (if available) or manual method
+    if (typeof THREE.STLExporter !== 'undefined') {
+        const exporter = new THREE.STLExporter();
+        const material = new THREE.MeshBasicMaterial();
+        const mesh = new THREE.Mesh(geometry, material);
+        const stlData = exporter.parse(mesh, { binary: false });
+        
+        const blob = new Blob([stlData], { type: 'application/sla' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `frame-${W}x${H}x${thickness}mm.stl`;
+        link.click();
+        
+        console.log('STL export complete using THREE.STLExporter!');
+    } else {
+        // Fallback: manual STL generation from BufferGeometry
+        const position = geometry.attributes.position;
+        const normal = geometry.attributes.normal;
+        const index = geometry.index;
+        
+        let stlString = 'solid frame\n';
+        
+        for (let i = 0; i < index.count; i += 3) {
+            const i0 = index.array[i];
+            const i1 = index.array[i + 1];
+            const i2 = index.array[i + 2];
+            
+            // Use face normal (average of vertex normals)
+            const nx = (normal.array[i0 * 3] + normal.array[i1 * 3] + normal.array[i2 * 3]) / 3;
+            const ny = (normal.array[i0 * 3 + 1] + normal.array[i1 * 3 + 1] + normal.array[i2 * 3 + 1]) / 3;
+            const nz = (normal.array[i0 * 3 + 2] + normal.array[i1 * 3 + 2] + normal.array[i2 * 3 + 2]) / 3;
+            
+            stlString += `  facet normal ${nx} ${ny} ${nz}\n`;
+            stlString += '    outer loop\n';
+            stlString += `      vertex ${position.array[i0 * 3]} ${position.array[i0 * 3 + 1]} ${position.array[i0 * 3 + 2]}\n`;
+            stlString += `      vertex ${position.array[i1 * 3]} ${position.array[i1 * 3 + 1]} ${position.array[i1 * 3 + 2]}\n`;
+            stlString += `      vertex ${position.array[i2 * 3]} ${position.array[i2 * 3 + 1]} ${position.array[i2 * 3 + 2]}\n`;
+            stlString += '    endloop\n';
+            stlString += '  endfacet\n';
+        }
+        
+        stlString += 'endsolid frame\n';
+        
+        console.log('STL string generated, length:', stlString.length);
+        
+        const blob = new Blob([stlString], { type: 'application/sla' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `frame-${W}x${H}x${thickness}mm.stl`;
+        link.click();
+        
+        console.log('STL export complete!');
+    }
     
     // Button feedback
     const btn = document.getElementById('exportSTLBtn');
