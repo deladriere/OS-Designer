@@ -1828,5 +1828,3 @@ function exportSTL() {
         setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 1500);
     }
 }
-
-
