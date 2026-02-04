@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "type": "os-designer-library",
+  "description": "Sample library for OS Designer - common OpenStructures components",
+  "shapes": [
+    { "name": "Knob", "width": 1, "height": 1, "color": "#9b59b6", "orientation": "horizontal" },
+    { "name": "Button", "width": 1, "height": 1, "color": "#e74c3c", "orientation": "horizontal" },
+    { "name": "LED", "width": 1, "height": 1, "color": "#2ecc71", "orientation": "horizontal" },
+    { "name": "Switch", "width": 1, "height": 2, "color": "#3498db", "orientation": "vertical" },
+    { "name": "Slider", "width": 1, "height": 4, "color": "#34495e", "orientation": "vertical" },
+    { "name": "LCD 2x2", "width": 2, "height": 2, "color": "#3498db", "orientation": "horizontal" },
+    { "name": "LCD 4x2", "width": 4, "height": 2, "color": "#3498db", "orientation": "horizontal" },
+    { "name": "NFC", "width": 2, "height": 2, "color": "#e67e22", "orientation": "horizontal" },
+    { "name": "Kraftor", "width": 3, "height": 2, "color": "#f5e6d3", "orientation": "horizontal" },
+    { "name": "Push 4", "width": 4, "height": 1, "color": "#e74c3c", "orientation": "horizontal" },
+    { "name": "Push 5", "width": 5, "height": 1, "color": "#e74c3c", "orientation": "horizontal" }
+  ]
+}

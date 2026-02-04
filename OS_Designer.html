@@ -13,29 +13,38 @@
     <div class="container">
         <!-- Left Icon Menu -->
         <div class="icon-menu">
-            <div class="menu-item" data-panel="designer" title="Designer">
-                <i class="fa-solid fa-border-all"></i>
-                <span>Designer</span>
+            <div class="menu-items-top">
+                <div class="menu-item" data-panel="designer" title="Designer">
+                    <i class="fa-solid fa-border-all"></i>
+                    <span>Designer</span>
+                </div>
+
+                <div class="menu-item" data-panel="colors" title="Colors">
+                    <i class="fa-solid fa-brush"></i>
+                    <span>Colors</span>
+                </div>
+
+                <div class="menu-item" data-panel="library" title="Library">
+                    <i class="fa-solid fa-shapes"></i>
+                    <span>Library</span>
+                </div>
+
+                <div class="menu-item" data-panel="project" title="Project">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <span>Project</span>
+                </div>
+
+                <div class="menu-item" data-panel="export" title="Export">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span>Export</span>
+                </div>
             </div>
 
-            <div class="menu-item active" data-panel="settings" title="Settings">
-                <i class="fa-solid fa-sliders"></i>
-                <span>Settings</span>
-            </div>
-
-            <div class="menu-item" data-panel="colors" title="Colors">
-                <i class="fa-solid fa-brush"></i>
-                <span>Colors</span>
-            </div>
-
-            <div class="menu-item" data-panel="project" title="Project">
-                <i class="fa-solid fa-diagram-project"></i>
-                <span>Project</span>
-            </div>
-
-            <div class="menu-item" data-panel="export" title="Export">
-                <i class="fa-solid fa-file-export"></i>
-                <span>Export</span>
+            <div class="menu-items-bottom">
+                <div class="menu-item active" data-panel="settings" title="Settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Settings</span>
+                </div>
             </div>
         </div>
 
@@ -50,9 +59,17 @@
                     <i class="fa-solid fa-times"></i> Close Preview
                 </button>
             </div>
-            <div class="app-title">
-                <span class="title-text">OS Designer</span>
-                <span class="version">v1.0</span>
+            <div class="app-info">
+                <div class="app-title">
+                    <span class="title-text">OS Designer</span>
+                    <span class="version">v1.0</span>
+                </div>
+                <div class="app-dimensions">
+                    <span class="dim-label">Grid:</span>
+                    <span id="infoGridDisplay" class="dim-value">8x8 units</span>
+                    <span class="dim-label">Frame:</span>
+                    <span id="infoFrameDisplay" class="dim-value">340x340mm</span>
+                </div>
             </div>
         </div>
 
@@ -151,6 +168,73 @@
                 </div>
             </div>
 
+            <!-- Library Panel -->
+            <div id="libraryPanel" class="panel" style="display: none;">
+                <div class="form-section">
+                    <h2>Create Library Shape</h2>
+                    <p class="subtitle">Create reusable named shapes for your designs.</p>
+
+                    <div class="form-group">
+                        <label for="libraryShapeName">Shape Name:</label>
+                        <input type="text" id="libraryShapeName" placeholder="e.g. Header, Sidebar, Button...">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="libraryWidth">Width (grid units):</label>
+                        <input type="number" id="libraryWidth" min="1" value="2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="libraryHeight">Height (grid units):</label>
+                        <input type="number" id="libraryHeight" min="1" value="2">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Color:</label>
+                        <div id="libraryColorPalette" class="color-palette selectable"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Orientation:</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="libraryOrientation" value="horizontal" checked>
+                                Horizontal
+                            </label>
+                            <label>
+                                <input type="radio" name="libraryOrientation" value="vertical">
+                                Vertical
+                            </label>
+                        </div>
+                    </div>
+
+                    <button id="addToLibraryBtn" class="btn-primary">
+                        <i class="fa-solid fa-plus"></i> Add to Library
+                    </button>
+                </div>
+
+                <div class="library-shapes-panel">
+                    <h2>My Library</h2>
+                    <div id="libraryShapesList" class="library-shapes-list">
+                        <p class="empty-message">No shapes in library yet</p>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>Share Library</h2>
+                    <p class="subtitle">Export your library to share with others, or import a shared library.</p>
+                    <div class="button-row">
+                        <button id="exportLibraryBtn" class="btn-export">
+                            <i class="fa-solid fa-download"></i> Export
+                        </button>
+                        <input type="file" id="importLibraryInput" accept=".json" style="display: none;">
+                        <button id="importLibraryBtn" class="btn-primary">
+                            <i class="fa-solid fa-upload"></i> Import
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Project Panel -->
             <div id="projectPanel" class="panel" style="display: none;">
                 <div class="form-section">
@@ -222,6 +306,14 @@
                     <button id="createBtn" class="btn-primary">Create Shape</button>
                 </div>
 
+                <div class="library-palette-section">
+                    <h2>Library Shapes</h2>
+                    <p class="subtitle">Click to add from your library, or drag to place.</p>
+                    <div id="designerLibraryPalette" class="designer-library-palette">
+                        <p class="empty-message">No library shapes yet. Create them in the Library menu.</p>
+                    </div>
+                </div>
+
                 <div class="shapes-panel">
                     <h2>Shapes to Place</h2>
                     <div id="shapesList" class="shapes-list">
@@ -243,7 +335,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/STLExporter.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js"></script>
-    
+
     <!-- CSG.js - Original library by Evan Wallace -->
     <script src="https://evanw.github.io/csg.js/csg.js"></script>
     <script src="script.js"></script>

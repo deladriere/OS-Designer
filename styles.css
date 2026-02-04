@@ -24,8 +24,16 @@ body {
     background: #2c3e50;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     align-items: center;
     padding: 20px 0;
+}
+
+.menu-items-top,
+.menu-items-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 10px;
 }
 
@@ -373,14 +381,20 @@ body {
     position: relative;
 }
 
-.app-title {
+.app-info {
     position: absolute;
     bottom: 20px;
     left: 20px;
     color: white;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
+}
+
+.app-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
 }
 
 .app-title .title-text {
@@ -392,6 +406,22 @@ body {
 .app-title .version {
     font-size: 11px;
     opacity: 0.7;
+}
+
+.app-dimensions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.app-dimensions .dim-label {
+    opacity: 0.7;
+}
+
+.app-dimensions .dim-value {
+    font-weight: 600;
 }
 
 .grid-container {
@@ -634,9 +664,7 @@ body {
     width: 100% !important;
     height: 100% !important;
     display: block;
-}
-
-.close-preview-btn {
+}.close-preview-btn {
     position: absolute;
     top: 20px;
     right: 20px;
@@ -682,4 +710,176 @@ body {
     width: 16px;
     height: 16px;
     cursor: pointer;
+}
+/* Library Panel Styles */
+.library-shapes-panel {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.library-shapes-panel h2 {
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.library-shapes-list {
+    min-height: 100px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.library-shape-item {
+    background: white;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border: 2px solid #ddd;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.library-shape-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.library-shape-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #333;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.library-shape-info {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.library-shape-info strong {
+    color: #333;
+    font-size: 13px;
+}
+
+.library-delete-btn {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.library-delete-btn:hover {
+    background: #c0392b;
+    transform: scale(1.1);
+}
+
+/* Library Palette in Designer Panel */
+.library-palette-section {
+    background: #e8f4fd;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 2px solid #b8daff;
+}
+
+.library-palette-section h2 {
+    font-size: 14px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.designer-library-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    min-height: 50px;
+}
+
+.library-palette-item {
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    padding: 8px;
+    cursor: grab;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    min-width: 60px;
+}
+
+.library-palette-item:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.library-palette-item.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.library-palette-preview {
+    border: 1px solid #333;
+    border-radius: 3px;
+}
+
+.library-palette-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: #333;
+    text-align: center;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Shape label on placed shapes */
+.shape-label {
+    text-align: center;
+    line-height: 1.2;
+}
+
+.shape-label small {
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+/* Text input for library name */
+#libraryShapeName {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: border-color 0.2s;
+}
+
+#libraryShapeName:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+#libraryShapeName::placeholder {
+    color: #999;
+    font-style: italic;
 }
